@@ -11,6 +11,7 @@ import { CourierModule } from './courier/courier.module';
 import { CategoryModule } from './category/category.module';
 import { AuthModule } from './auth/auth.module';
 import { RedisModule } from './redis/redis.module';
+import { SocketModule } from './socket/socket.module';
 import * as path from 'path';
 
 @Module({
@@ -41,6 +42,7 @@ import * as path from 'path';
     CategoryModule,
     AuthModule,
     RedisModule,
+    SocketModule,
   ],
 })
 export class AppModule {}
