@@ -17,6 +17,8 @@ import { RolesEnum } from 'src/enums/roles.enum';
 import { plainToInstance } from 'class-transformer';
 import { OrderResponseDto } from './dto/order.response.dto';
 import { OrderUpdateDto } from './dto/order.update.dto';
+import { RedisService } from 'src/redis/redis.service';
+import { OrdersGateway } from 'src/socket/order.gateway';
 
 @Injectable()
 export class OrderService {
@@ -26,6 +28,8 @@ export class OrderService {
     private merchantService: MerchantService,
     private itemsService: ItemService,
     private userService: UserService,
+    private ordersGateway: OrdersGateway,
+    private redisService: RedisService,
   ) {}
 
   async createOrder(body: OrderCreateDto, userCredentials) {
@@ -63,6 +67,10 @@ export class OrderService {
       }
 
       await this.orderRepository.save(newOrder);
+
+      this.ordersGateway.server
+        .to(`merchant-${merchantId}`)
+        .emit('newOrder', newOrder);
 
       return HttpStatus.CREATED;
     } catch (error) {
@@ -141,5 +149,67 @@ export class OrderService {
     } catch (error) {
       throw new error.message();
     }
+  }
+
+  haversineDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
+    const toRad = (x: number) => (x * Math.PI) / 180;
+
+    const R = 6371; // Radius of Earth in kilometers
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c; // Distance in kilometers
+
+    return d;
+  }
+
+  async findNearbyCouriers(
+    pickupLocation: { latitude: number; longitude: number },
+    maxDistance: number,
+  ) {
+    const couriersData =
+      await this.redisService.getAllDataMatchingPattern('courier-*');
+
+    const nearbyCouriers = [];
+
+    for (const [courierId, courierLocation] of Object.entries(couriersData)) {
+      const courierLoc = JSON.parse(courierLocation);
+
+      const distance = this.haversineDistance(
+        pickupLocation.latitude,
+        pickupLocation.longitude,
+        courierLoc.latitude,
+        courierLoc.longitude,
+      );
+
+      if (distance <= maxDistance) {
+        nearbyCouriers.push({ courierId, distance });
+      }
+    }
+
+    nearbyCouriers.sort((a, b) => a.distance - b.distance);
+
+    return nearbyCouriers;
+  }
+
+  async assignCourier(order: OrderResponseDto) {
+    const couriers = await this.findNearbyCouriers(order.merchant.location, 5);
+
+    this.ordersGateway.server
+      .to(`courier-${couriers[0].id}`)
+      .emit('deliveryRequest', { order });
   }
 }

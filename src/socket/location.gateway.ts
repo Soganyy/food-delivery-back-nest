@@ -28,16 +28,22 @@ export class LocationGateway
   ) {}
 
   afterInit(server: Server) {
-    console.log('WebSocket Gateway initialized');
+    console.log('Location Gateway initialized');
   }
 
-  handleConnection(client: Socket) {
-    console.log(`Courier connected: ${client.id}`);
+  async handleConnection(client: Socket) {
+    const { userId } = await this.verifyUser(
+      client.handshake.auth.token as string,
+    );
+    console.log(`Courier connected for location update: ${userId}`);
   }
 
-  handleDisconnect(client: Socket) {
-    console.log(`Courier disconnected: ${client.id}`);
-    this.redisService.removeLocation(client.id);
+  async handleDisconnect(client: Socket) {
+    const { userId } = await this.verifyUser(
+      client.handshake.auth.token as string,
+    );
+    console.log(`Courier disconnected: ${userId}`);
+    this.redisService.removeLocation(userId);
   }
 
   @SubscribeMessage('updateLocation')
@@ -68,7 +74,7 @@ export class LocationGateway
       secret: this.configService.get<string>('JWT_SECRET_KEY'),
     });
 
-    const userId = payload.id;
+    const userId = payload.courierId;
 
     return { userId };
   }

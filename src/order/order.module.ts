@@ -7,6 +7,8 @@ import { MerchantModule } from 'src/merchant/merchant.module';
 import { ItemModule } from 'src/item/item.module';
 import { UserModule } from 'src/user/user.module';
 import { AuthModule } from 'src/auth/auth.module';
+import { RedisModule } from 'src/redis/redis.module';
+import { SocketModule } from 'src/socket/socket.module';
 
 @Module({
   imports: [
@@ -15,8 +17,11 @@ import { AuthModule } from 'src/auth/auth.module';
     MerchantModule,
     ItemModule,
     UserModule,
+    SocketModule,
+    RedisModule,
   ],
   controllers: [OrderController],
   providers: [OrderService],
+  exports: [OrderService],
 })
 export class OrderModule {}

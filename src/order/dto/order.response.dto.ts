@@ -8,6 +8,7 @@ export class OrderResponseDto {
     businessName: string;
     address: string;
     phoneNumber: string;
+    location: { longitude: number; latitude: number };
   };
   user: {
     id: number;

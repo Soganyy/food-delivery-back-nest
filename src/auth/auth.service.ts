@@ -24,7 +24,7 @@ export class AuthService {
       throw new UnauthorizedException();
     }
     const payload = {
-      id: user.id,
+      userId: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -45,7 +45,7 @@ export class AuthService {
       throw new UnauthorizedException();
     }
     const payload = {
-      id: merchant.id,
+      merchantId: merchant.id,
       email: merchant.email,
       firstName: merchant.firstName,
       lastName: merchant.lastName,
@@ -65,7 +65,7 @@ export class AuthService {
     const courier = await this.courierService.findOne(body);
     if (courier?.password !== body.password) throw new UnauthorizedException();
     const payload = {
-      id: courier.id,
+      courierId: courier.id,
       email: courier.email,
       phoneNumber: courier.phoneNumber,
       firstName: courier.firstName,
