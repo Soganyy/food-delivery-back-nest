@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { Item } from './item.entity';
 import { ItemCreateDto } from './dto/item.create.dto';
@@ -56,56 +56,65 @@ export class ItemService {
   }
 
   async createItem(body: ItemCreateDto, user: any) {
-    const merchant = await this.merchantService.findOne({
-      email: user.email,
-      password: user.password,
-    });
-
-    const newItem = this.itemEntity.create({
-      title: body.title,
-      description: body.description,
-      price: body.price,
-      merchant: merchant,
-    });
-
-    const savedItem = await this.itemEntity.save(newItem);
-
-    if (body.specifications && body.specifications.length > 0) {
-      savedItem.specifications = body.specifications.map((spec) => {
-        return this.specificationEntity.create({
-          name: spec.name,
-          value: spec.value,
-          item: savedItem,
-        });
+    try {
+      const merchant = await this.merchantService.findOne({
+        email: user.email,
+        password: user.password,
       });
 
-      await this.specificationEntity.save(savedItem.specifications);
+      if (!merchant) throw new Error('Merchant not found!');
+
+      const newItem = this.itemEntity.create({
+        title: body.title,
+        description: body.description,
+        price: body.price,
+        merchant: merchant,
+      });
+
+      const savedItem = await this.itemEntity.save(newItem);
+
+      if (body.specifications && body.specifications.length > 0) {
+        savedItem.specifications = body.specifications.map((spec) => {
+          return this.specificationEntity.create({
+            name: spec.name,
+            value: spec.value,
+            item: savedItem,
+          });
+        });
+
+        await this.specificationEntity.save(savedItem.specifications);
+      }
+
+      return HttpStatus.CREATED;
+    } catch (error) {
+      console.error();
+      return HttpStatus.INTERNAL_SERVER_ERROR;
     }
-
-    return savedItem;
   }
 
-  async updateItem(body: ItemCreateDto, id: number): Promise<ItemResponseDto> {
-    const itemExist = await this.itemEntity.findOne({ where: { id: id } });
+  async updateItem(body: ItemCreateDto, id: number) {
+    try {
+      const itemExist = await this.itemEntity.findOne({ where: { id: id } });
 
-    if (!itemExist) throw new NotFoundException('Item not found');
+      if (!itemExist) throw new NotFoundException('Item not found');
 
-    const updatedItem = Object.assign(itemExist, body);
-    const savedItem = await this.itemEntity.save(updatedItem);
+      const updatedItem = Object.assign(itemExist, body);
+      this.itemEntity.save(updatedItem);
 
-    return plainToInstance(ItemResponseDto, {
-      id: savedItem.id,
-      title: savedItem.title,
-      description: savedItem.description,
-      price: savedItem.price,
-      merchantId: savedItem.merchant.id,
-    });
+      return HttpStatus.NO_CONTENT;
+    } catch (error) {
+      console.error();
+    }
   }
 
-  async deleteItem(id: number): Promise<void> {
-    const item = await this.itemEntity.findOne({ where: { id: id } });
-
-    if (!item) throw new NotFoundException('Item not found');
-    await this.itemEntity.delete(id);
+  async deleteItem(id: number) {
+    try {
+      const item = await this.itemEntity.findOne({ where: { id: id } });
+      if (!item) throw new NotFoundException('Item not found');
+      await this.itemEntity.delete(id);
+    } catch (error) {
+      console.error();
+      return HttpStatus.INTERNAL_SERVER_ERROR;
+    }
   }
 }
